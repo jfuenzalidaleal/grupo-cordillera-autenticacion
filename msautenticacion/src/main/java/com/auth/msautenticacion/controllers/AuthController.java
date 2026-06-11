@@ -72,7 +72,7 @@ public class AuthController {
         // 5. RETORNAR EL JSON REAL: Enviamos el JwtResponse que el BFF necesita leer
         return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
     }
-
+//elqueloleeesgei
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
         // 1. Validaciones previas para evitar duplicados
