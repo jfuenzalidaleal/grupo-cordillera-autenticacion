@@ -21,11 +21,17 @@ public class DataSeeder {
             }
 
             // Revisa si la tabla está vacía y crea el rol BUYER
-            if (roleRepository.findByName("ROLE_BUYER").isEmpty()) {
+            if (roleRepository.findByName("ROLE_GERENTE").isEmpty()) {
                 Role buyerRole = new Role();
-                buyerRole.setName("ROLE_BUYER");
+                buyerRole.setName("ROLE_GERENTE");
                 roleRepository.save(buyerRole);
-                System.out.println("Rol ROLE_BUYER creado en la BD.");
+                System.out.println("Rol ROLE_GERENTE creado en la BD.");
+            }
+            if (roleRepository.findByName("ROLE_USUARIO").isEmpty()) {
+                Role buyerRole = new Role();
+                buyerRole.setName("ROLE_USUARIO");
+                roleRepository.save(buyerRole);
+                System.out.println("Rol ROLE_USUARIO creado en la BD.");
             }
         };
     }

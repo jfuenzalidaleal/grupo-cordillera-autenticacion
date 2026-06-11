@@ -45,29 +45,32 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+        // Líneas de rastreo en consola
+        System.out.println("====== REVISANDO ENTRADA DESDE REACT ======");
+        System.out.println("USER ENVIADO: [" + loginRequest.getUsername() + "]");
+        System.out.println("PASS ENVIADA: [" + loginRequest.getPassword() + "]");
+        System.out.println("LONGITUD PASS: " + (loginRequest.getPassword() != null ? loginRequest.getPassword().length() : 0));
+        System.out.println("===========================================");
 
-        // 1. Validar las credenciales usando el AuthenticationManager de Spring Security
+        // 1. Autenticar al usuario con el username y password que vienen de React
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+        );
 
+        // 2. Guardar la autenticación en el contexto de Spring Security
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 2. Si las credenciales son válidas, obtener los datos del usuario
+        // 3. Obtener los detalles del usuario autenticado (¡Hacemos esto primero!)
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        // 3. Generar el Token JWT incluyendo sus roles
+        // 4. 🚨 GENERAR EL TOKEN JWT: Le pasamos el username y los roles tal como lo pide tu JwtUtils
         String jwt = jwtUtils.generateJwtToken(userDetails.getUsername(), roles);
 
-        // 4. Retornar la respuesta con el token
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                roles));
+        // 5. RETORNAR EL JSON REAL: Enviamos el JwtResponse que el BFF necesita leer
+        return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
     }
 
     @PostMapping("/register")
@@ -85,14 +88,13 @@ public class AuthController {
         User user = new User();
         user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
-        user.setPassword(encoder.encode(signUpRequest.getPassword())); // <-- AQUÍ SE ENCRIPTA LA CONTRASEÑA CON BCRYPT
+        user.setPassword(encoder.encode(signUpRequest.getPassword()));
 
         // 3. Asignar los roles correspondientes
         Set<String> strRoles = signUpRequest.getRoles();
         Set<Role> roles = new HashSet<>();
 
         if (strRoles == null || strRoles.isEmpty()) {
-            // Si no se especifican roles, se le asigna el rol por defecto (Comprador)
             Role buyerRole = roleRepository.findByName("ROLE_BUYER")
                     .orElseThrow(() -> new RuntimeException("Error: El Rol ROLE_BUYER no fue encontrado en la base de datos."));
             roles.add(buyerRole);
