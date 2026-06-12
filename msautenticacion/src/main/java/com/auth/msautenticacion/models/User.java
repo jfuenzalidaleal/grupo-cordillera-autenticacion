@@ -36,4 +36,6 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id") // Clave foránea de roles
     )
     private Set<Role> roles = new HashSet<>();
+    @Column(name = "sucursal_id", nullable = true)
+    private Long sucursalId;
 }

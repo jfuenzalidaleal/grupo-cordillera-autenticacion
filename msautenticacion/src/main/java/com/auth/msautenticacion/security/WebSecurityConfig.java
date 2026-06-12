@@ -61,7 +61,7 @@ public class WebSecurityConfig {
 
                 // 3. Permitir el acceso público a las rutas de autenticación
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").hasAnyRole("ADMIN", "GERENTE", "USUARIO")
+                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

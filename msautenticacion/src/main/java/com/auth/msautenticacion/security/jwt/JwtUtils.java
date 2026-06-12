@@ -19,12 +19,14 @@ public class JwtUtils {
     private int jwtExpirationMs;
 
     // Generar el token JWT con el username y sus roles
-    public String generateJwtToken(String username, List<String> roles) {
+    // Cambia tu método existente por este:
+    public String generateJwtToken(String username, List<String> roles, Long sucursalId) {
         Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
 
         return Jwts.builder()
                 .setSubject(username)
-                .claim("roles", roles) // Aquí metemos si es ADMIN, COMPRADOR, etc.
+                .claim("roles", roles)
+                .claim("sucursalId", sucursalId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key, SignatureAlgorithm.HS256)

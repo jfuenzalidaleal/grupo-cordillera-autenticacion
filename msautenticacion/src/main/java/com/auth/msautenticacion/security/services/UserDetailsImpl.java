@@ -16,6 +16,7 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String username;
     private String email;
+    private Long sucursalId; // 🏢 Campo agregado correctamente
 
     @JsonIgnore
     private String password;
@@ -23,16 +24,20 @@ public class UserDetailsImpl implements UserDetails {
     // Aquí guardaremos los roles convertidos en "Authorities" de Spring
     private Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(Long id, String username, String email, String password,
+    // 🛠️ CONSTRUCTOR CORREGIDO: Ahora recibe 'Long sucursalId' de forma explícita
+    public UserDetailsImpl(Long id, String username, String email, String password, Long sucursalId,
                            Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
+        this.sucursalId = sucursalId; // Asignación correcta desde el parámetro
         this.authorities = authorities;
     }
 
-    // Método estático mágico para transformar nuestro 'User' de MySQL a este 'UserDetailsImpl'
+    public Long getSucursalId() { return sucursalId; }
+
+    // 🛠️ MÉTODO BUILD CORREGIDO: Agregada la coma faltante y el mapeo limpio
     public static UserDetailsImpl build(User user) {
         List<GrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
@@ -43,6 +48,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
+                user.getSucursalId(), // ← Coma corregida aquí
                 authorities);
     }
 

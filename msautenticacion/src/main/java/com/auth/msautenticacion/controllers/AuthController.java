@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -52,7 +51,7 @@ public class AuthController {
         System.out.println("LONGITUD PASS: " + (loginRequest.getPassword() != null ? loginRequest.getPassword().length() : 0));
         System.out.println("===========================================");
 
-        // 1. Autenticar al usuario con el username y password que vienen de React
+        // 1. Autenticar al usuario con las credenciales que vienen de React
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
         );
@@ -60,22 +59,35 @@ public class AuthController {
         // 2. Guardar la autenticación en el contexto de Spring Security
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 3. Obtener los detalles del usuario autenticado (¡Hacemos esto primero!)
+        // 3. Obtener los detalles e información del usuario autenticado desde la BD
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        // 4. 🚨 GENERAR EL TOKEN JWT: Le pasamos el username y los roles tal como lo pide tu JwtUtils
-        String jwt = jwtUtils.generateJwtToken(userDetails.getUsername(), roles);
+        // 4. Generar el Token JWT firmando con el Claim sucursalId dinámico
+        String jwt = jwtUtils.generateJwtToken(userDetails.getUsername(), roles, userDetails.getSucursalId());
 
-        // 5. RETORNAR EL JSON REAL: Enviamos el JwtResponse que el BFF necesita leer
-        return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
+        // 5. Construir el objeto de respuesta original
+        JwtResponse response = new JwtResponse(
+                jwt,
+                userDetails.getId(),
+                userDetails.getUsername(),
+                userDetails.getEmail(),
+                roles
+        );
+
+        // 6. 🎯 FIX CRÍTICO: Inyectamos el ID de la sucursal en el JSON para que useAuth() en React pueda leerlo
+        response.setSucursalId(userDetails.getSucursalId());
+
+        // 7. Retornar la respuesta HTTP con el payload completo hacia el Frontend
+        return ResponseEntity.ok(response);
     }
-//elqueloleeesgei
+
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
-        // 1. Validaciones previas para evitar duplicados
+        // 1. Validaciones previas para evitar duplicados en la BD
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body("Error: ¡El nombre de usuario ya está en uso!");
         }
