@@ -11,6 +11,7 @@ import com.auth.msautenticacion.security.jwt.JwtUtils;
 import com.auth.msautenticacion.security.services.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -84,7 +86,68 @@ public class AuthController {
         // 7. Retornar la respuesta HTTP con el payload completo hacia el Frontend
         return ResponseEntity.ok(response);
     }
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/users")
+    public ResponseEntity<?> listarUsuarios(Authentication authentication) {
 
+        try {
+
+            UserDetailsImpl userDetails =
+                    (UserDetailsImpl) authentication.getPrincipal();
+
+            Long sucursalId = userDetails.getSucursalId();
+
+            boolean esAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            List<User> usuariosDB;
+
+            if (esAdmin) {
+
+                System.out.println("ADMIN detectado -> mostrando todos los usuarios");
+
+                usuariosDB = userRepository.findAll();
+
+            } else {
+
+                System.out.println(
+                        "Usuario de sucursal "
+                                + sucursalId
+                                + " -> mostrando solo su sucursal"
+                );
+
+                usuariosDB = userRepository.findBySucursalId(sucursalId);
+            }
+
+            List<Map<String, Object>> usuarios = usuariosDB.stream()
+                    .map(user -> Map.<String, Object>of(
+                            "id", user.getId(),
+                            "username", user.getUsername(),
+                            "email", user.getEmail(),
+                            "sucursalId", user.getSucursalId() != null
+                                    ? user.getSucursalId()
+                                    : 0,
+                            "roles", user.getRoles().stream()
+                                    .map(Role::getName)
+                                    .collect(Collectors.toList())
+                    ))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(usuarios);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity.status(500).body(
+                    Map.of(
+                            "error",
+                            "Error al listar usuarios: " + e.getMessage()
+                    )
+            );
+        }
+    }
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
         // 1. Validaciones previas para evitar duplicados en la BD
@@ -101,27 +164,53 @@ public class AuthController {
         user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
+        user.setSucursalId(signUpRequest.getSucursalId());
 
         // 3. Asignar los roles correspondientes
         Set<String> strRoles = signUpRequest.getRoles();
         Set<Role> roles = new HashSet<>();
 
         if (strRoles == null || strRoles.isEmpty()) {
-            Role buyerRole = roleRepository.findByName("ROLE_BUYER")
-                    .orElseThrow(() -> new RuntimeException("Error: El Rol ROLE_BUYER no fue encontrado en la base de datos."));
-            roles.add(buyerRole);
+
+            Role userRole = roleRepository.findByName("ROLE_USUARIO")
+                    .orElseThrow(() ->
+                            new RuntimeException("ROLE_USUARIO no encontrado"));
+
+            roles.add(userRole);
+
         } else {
             strRoles.forEach(role -> {
+
                 switch (role.toLowerCase()) {
+
                     case "admin":
-                        Role adminRole = roleRepository.findByName("ROLE_ADMIN")
-                                .orElseThrow(() -> new RuntimeException("Error: El Rol ROLE_ADMIN no fue encontrado."));
-                        roles.add(adminRole);
+                        roles.add(
+                                roleRepository.findByName("ROLE_ADMIN")
+                                        .orElseThrow(() ->
+                                                new RuntimeException("ROLE_ADMIN no encontrado"))
+                        );
                         break;
+
+                    case "gerente":
+                        roles.add(
+                                roleRepository.findByName("ROLE_GERENTE")
+                                        .orElseThrow(() ->
+                                                new RuntimeException("ROLE_GERENTE no encontrado"))
+                        );
+                        break;
+
+                    case "usuario":
+                        roles.add(
+                                roleRepository.findByName("ROLE_USUARIO")
+                                        .orElseThrow(() ->
+                                                new RuntimeException("ROLE_USUARIO no encontrado"))
+                        );
+                        break;
+
                     default:
-                        Role buyerRole = roleRepository.findByName("ROLE_BUYER")
-                                .orElseThrow(() -> new RuntimeException("Error: El Rol ROLE_BUYER no fue encontrado."));
-                        roles.add(buyerRole);
+                        throw new RuntimeException(
+                                "Rol inválido recibido: " + role
+                        );
                 }
             });
         }
